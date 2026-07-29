@@ -11,7 +11,7 @@ description: 使用 yt-dlp 与 FFmpeg 下载、保存、检查或提取公开视
 
 核心价值：避免拿到链接就直接下载，减少下错清晰度、下错容器、文件名混乱、HDR/编码不兼容、输出位置不清楚等问题。默认适用于 YouTube、YouTube Shorts、Vimeo、TikTok、Instagram、X/Twitter、Facebook、Twitch、Bilibili、Dailymotion、SoundCloud、Bandcamp、Reddit 及其他 `yt-dlp` 支持的来源；完整范围以 [yt-dlp 官方站点清单](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 为准。播放列表只在用户明确要求时处理。
 
-快速开始：把视频链接发给 AI，并说明你想要“最高画质”“MP4 兼容”“小文件”“只要音频”或让 AI 推荐。默认推荐最高可用画质，而不是为了省空间主动降到 720p。普通视频下载会保存最高质量作者封面并转为 `原始封面.png`，同时把独立音频和最多一份最佳原语言字幕放入项目的隐藏 `.work/input/`，方便后续直接翻译；平台没有字幕时不会伪造。可见目录只保留视频和封面。`yt-dlp` 负责解析和下载；`ffmpeg` 负责合并音视频、转换容器、提取音频和转换封面格式。
+快速开始：把视频链接发给 AI，并说明你想要“最高画质”“MP4 兼容”“小文件”“只要音频”或让 AI 推荐。默认推荐最高可用画质，而不是为了省空间主动降到 720p。普通视频下载会把原始标题按视频领域术语翻译为中文，去掉发布日期与结尾平台 ID，以中文净标题命名视频；同时保存最高质量作者封面为 `原始封面.png`，并把独立音频和最多一份最佳原语言字幕放入项目的隐藏 `.work/input/`，方便后续直接翻译。平台没有字幕时不会伪造。`yt-dlp` 负责解析和下载；`ffmpeg` 负责合并音视频、转换容器、提取音频和转换封面格式。
 
 效果示例：
 
@@ -26,7 +26,7 @@ AI：我会先列出可用格式，然后给你几个选择：最高画质、MP4
 
 ## Exact Preflight
 
-Do not invent, paraphrase, reorder, or add confirmation choices. For a standalone download, run `python scripts/preflight.py --mode single`; for `video-download -> video-translate`, run `python scripts/preflight.py --mode combined`. Send stdout to the user verbatim. The combined questionnaire replaces the downstream translation questionnaire; reuse those answers and do not ask them again. Omit it only when the user already supplied every answer explicitly.
+Do not invent, paraphrase, reorder, or add confirmation choices. For a standalone download, run `python scripts/preflight.py --mode single`; for a remote-URL `video-download -> video-translate` route, run `python scripts/preflight.py --mode combined`. Send stdout to the user verbatim. The combined questionnaire replaces the downstream translation questionnaire; reuse those answers and do not ask them again. A local-video Flow route must skip this Skill and use `video-translate/scripts/preflight.py`, so it never asks download quality. Omit a questionnaire only when the user already supplied every answer explicitly.
 
 ## Long-Running Execution
 
@@ -82,22 +82,24 @@ Mention format IDs or selectors, resolution, FPS, HDR/SDR, video codec, audio co
 
 5. Confirm the parent download location and create a media project folder.
    - Treat every download that may continue to subtitle translation as one media project, not a loose collection of files.
-   - Use the confirmed location as `PARENT_DIR`, then create `PROJECT_DIR` named `<localized video title> [<video id>]` beneath it. Localize the title to the user's requested language when asked.
+   - Translate the real remote title into the user's target language using the video's domain terminology. For Chinese output, use natural domain Chinese rather than a literal word-by-word title.
+   - Remove a leading upload date, a trailing `[<video id>]`, and the extension from the visible media basename. Call the result `LOCALIZED_TITLE`; it must contain the actual title and must never be a generic label such as `原版视频` or `视频`.
+   - Use the confirmed location as `PARENT_DIR`, then create `PROJECT_DIR` named `<LOCALIZED_TITLE> [<video id>]` beneath it. Keeping the ID on the project directory provides collision resistance and source traceability; do not keep it on visible deliverable filenames.
    - Save the video and final ASS/SRT outputs under `PROJECT_DIR`. For normal video downloads, save the independent audio and selected original-language subtitle under `PROJECT_DIR/.work/input/`; they are reusable translation inputs, not visible deliverables. If translation succeeds later, `video-translate` removes them.
    - Save only the best available platform thumbnail, convert it to PNG, and name it `原始封面.png` under `PROJECT_DIR`. Use `--write-thumbnail`, not `--write-all-thumbnails`.
    - Pass the same `PROJECT_DIR` to video translation as both its `--outputs-dir` and the parent of its hidden `.work/` directory.
 
 6. Confirm the filename.
-   - Propose a default filename from the video metadata, normally:
+   - Propose this default visible video filename:
 
 ```text
-%(upload_date>%Y-%m-%d)s - %(title).200B [%(id)s].%(ext)s
+LOCALIZED_TITLE.%(ext)s
 ```
 
    - Ask whether the user wants to update the filename.
    - If yes, ask them to send the filename directly. Preserve or add the final extension based on the chosen container.
-   - Keep `[%(id)s]` in the default name to avoid collisions and preserve the source video ID, but remove it if the user requests a cleaner name.
-   - Use the confirmed filename or template as `OUTPUT_NAME`. When a localized project title is used, keep the same localized basename for video, audio, and subtitles.
+   - Do not prepend the upload date or append the platform video ID to the default visible filename. The project directory already retains the ID.
+   - Use the confirmed filename or template as `OUTPUT_NAME`. Keep `MEDIA_STEM=LOCALIZED_TITLE` identical for the visible video, hidden audio/reference subtitle, and downstream ASS/SRT outputs.
 
 ## Commands
 
