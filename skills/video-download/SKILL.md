@@ -26,7 +26,7 @@ AI：我会先列出可用格式，然后给你几个选择：最高画质、MP4
 
 ## Exact Preflight
 
-Do not invent, paraphrase, reorder, or add confirmation choices. For a standalone download, run `python scripts/preflight.py --mode single`; for a remote-URL `video-download -> video-translate` route, run `python scripts/preflight.py --mode combined`. Send stdout to the user verbatim. The combined questionnaire replaces the downstream translation questionnaire; reuse those answers and do not ask them again. A local-video Flow route must skip this Skill and use `video-translate/scripts/preflight.py`, so it never asks download quality. Omit a questionnaire only when the user already supplied every answer explicitly.
+Run `python scripts/preflight.py` and send stdout to the user verbatim. Do not invent, paraphrase, reorder, or add confirmation choices. Omit the questionnaire only when the user or an upstream caller already supplied every download answer explicitly. This Skill confirms downloading only; downstream processing owns its own confirmation contract and may reuse equivalent answers already collected upstream.
 
 ## Long-Running Execution
 
