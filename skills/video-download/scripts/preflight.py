@@ -1,17 +1,46 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import re
 
 
-QUESTIONNAIRE = """准备下载目标链接的视频、封面、音频和字幕（如有），开始下载前，请一次性确认以下内容：
-1. 下载质量：默认选择最高可用画质和最佳音频；如需 MP4 兼容版或限制分辨率（如 720p），请回复。
-2. 保存位置：默认保存到桌面，并为视频创建独立项目文件夹；如需其他位置，请回复绝对路径。
-3. 命名方式：默认把原始标题按视频领域术语翻译为中文，去掉开头日期、结尾平台唯一编码和扩展名；视频及后续 ASS/SRT 使用这个中文净标题。项目文件夹可保留视频 ID 用于防重；如需其他名称，请回复。
-4. 播放列表：默认只下载当前视频，不下载整个播放列表。
+def safe_field(value: str) -> str:
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", value).strip()[:240]
 
-如全部使用默认设置，请回复：确认默认设置。"""
+
+def questionnaire(video_options: list[str], default_name: str, source_language: str) -> str:
+    options = "\n".join(
+        f"   {index}. {safe_field(option)}"
+        for index, option in enumerate(video_options, start=1)
+    )
+    language = safe_field(source_language) if source_language else "尚未可靠识别"
+    return f"""准备下载目标链接的视频、封面、ASR 音频和原语言字幕（如有）。已完成格式探测，开始下载前请一次性确认：
+1. 内容授权：请确认你有权下载或使用这个媒体。
+2. 视频质量：默认选择第 1 项，即最高可用 SDR 兼容方案。实际可用选项如下；每项应包含分辨率、编码、容器和可见的估算大小：
+{options}
+3. 保存位置：默认桌面；也可以提供其他父目录。下载时会在目标位置自动创建新的独立项目文件夹，不把文件散落到已有目录。
+4. 命名方式：默认名称为“{safe_field(default_name)}”，顺序是原语言真实标题、平台日期、尾部视频 ID。用户也可以提供自定义名称；自定义名称会同时用于项目文件夹、视频、ASR 音频和原语言字幕。
+5. 源语言：当前识别为“{language}”。如不正确或尚未可靠识别，请提供实际语言。
+6. 原语言字幕：默认只保存一份最佳原语言字幕，人工字幕优先；没有人工字幕时才使用自动字幕，平台没有时不生成。
+7. ASR 音频：默认保存已探测到的最适合 ASR 转写的最佳音频到项目的 .work/input/。
+8. 播放列表：默认只下载当前视频，不下载整个播放列表；只有明确要求时才处理播放列表。
+
+如接受以上默认设置，请回复：确认默认设置，并确认有权下载。"""
 
 
 def main() -> int:
-    print(QUESTIONNAIRE)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--video-option",
+        action="append",
+        required=True,
+        help="reviewed technical option; pass the highest SDR option first",
+    )
+    parser.add_argument("--default-name", required=True)
+    parser.add_argument("--source-language", default="")
+    args = parser.parse_args()
+    print(questionnaire(args.video_option, args.default_name, args.source_language))
     return 0
 
 

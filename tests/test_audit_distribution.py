@@ -41,6 +41,11 @@ class AuditDistributionTests(unittest.TestCase):
         published["latestVersion"]["version"] = "1.2.2"
         self.assertFalse(audit_distribution.evaluate_clawhub(item, published)["aligned"])
 
+    def test_distribution_urls_use_the_standalone_repository(self) -> None:
+        source = (ROOT / "tools/audit_distribution.py").read_text(encoding="utf-8")
+        self.assertNotIn("aiaaaa4/ai-landing-skills", source)
+        self.assertIn("repository['name']", source)
+
 
 if __name__ == "__main__":
     unittest.main()

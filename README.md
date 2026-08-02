@@ -2,9 +2,11 @@
 
 独立 Skill 仓库：`aiaaaa4.video-download`。
 
-**`aiaaaa4.video-download` · v1.3.0 · [ClawHub](https://clawhub.ai/aiaaaa4/video-download)**
+**`aiaaaa4.video-download` · v1.4.0 · [ClawHub](https://clawhub.ai/aiaaaa4/video-download)**
 
-这个 Skill 使用 `yt-dlp` 与 FFmpeg，在下载前确认画质、保存位置和命名；下载时保存最高质量原始封面，并可为后续处理准备隐藏音频和原语言字幕。它只负责通用下载能力，不包含任何个人 Flow 的固定策略。
+这个 Skill 使用 `yt-dlp` 与 FFmpeg，在下载前探测并列出实际分辨率、编码和可见的估算大小，再确认画质、保存位置、命名、源语言和播放列表行为。默认选择最高可用 SDR 兼容方案，在桌面下新建独立项目文件夹，并以“原语言真实标题、平台日期、尾部视频 ID”统一命名项目、视频、ASR 音频和字幕；每次问卷都允许用户修改这些默认值。
+
+首次使用时先安装已验证版本的 Skill、`yt-dlp` 和 FFmpeg，再运行 `python3 skills/video-download/scripts/setup_check.py`；可通过 `--probe-url` 使用获准的短视频验证解析能力，但不会下载媒体。正式下载使用 `skills/video-download/scripts/download.py`，只在用户确认格式和路径后执行。
 
 ## Repository Boundary
 

@@ -1,6 +1,6 @@
 ---
 name: video-download
-description: 使用 yt-dlp 与 FFmpeg 下载、保存、检查或提取公开视频、独立音频、最佳原语言字幕及最高质量原始封面，并为后续字幕翻译准备确定性的隐藏输入。Use when Codex is asked to inspect formats, download permitted media with its best source thumbnail, audio, and source subtitle when available, or prepare deterministic inputs for the video translation workflow; confirm quality, path, and filename before downloading.
+description: 使用 yt-dlp 与 FFmpeg 下载、保存和检查用户获准获取的公开视频、最适合 ASR 的最佳音频、最佳原语言字幕及最高质量原始封面。Use when Codex is asked to inspect formats or download permitted media with deterministic project outputs; confirm quality, path, filename, source language, and playlist behavior before downloading.
 ---
 
 # 一键加速视频下载
@@ -11,7 +11,7 @@ description: 使用 yt-dlp 与 FFmpeg 下载、保存、检查或提取公开视
 
 核心价值：避免拿到链接就直接下载，减少下错清晰度、下错容器、文件名混乱、HDR/编码不兼容、输出位置不清楚等问题。默认适用于 YouTube、YouTube Shorts、Vimeo、TikTok、Instagram、X/Twitter、Facebook、Twitch、Bilibili、Dailymotion、SoundCloud、Bandcamp、Reddit 及其他 `yt-dlp` 支持的来源；完整范围以 [yt-dlp 官方站点清单](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 为准。播放列表只在用户明确要求时处理。
 
-快速开始：把视频链接发给 AI，并说明你想要“最高画质”“MP4 兼容”“小文件”“只要音频”或让 AI 推荐。默认推荐最高可用画质，而不是为了省空间主动降到 720p。普通视频下载会把原始标题按视频领域术语翻译为中文，去掉发布日期与结尾平台 ID，以中文净标题命名视频；同时保存最高质量作者封面为 `原始封面.png`，并把独立音频和最多一份最佳原语言字幕放入项目的隐藏 `.work/input/`，方便后续直接翻译。平台没有字幕时不会伪造。`yt-dlp` 负责解析和下载；`ffmpeg` 负责合并音视频、转换容器、提取音频和转换封面格式。
+快速开始：把视频链接发给 AI。AI 会先探测实际格式，在问卷中默认选择最高可用 SDR 兼容方案，并列出其他分辨率、编码和可见的估算大小供用户选择。默认名称按“原语言真实标题、平台日期、尾部视频 ID”组成，默认保存到桌面下的新项目文件夹；用户可以在每次任务中修改这些默认值。普通视频会把最适合 ASR 的最佳音频和最多一份最佳原语言字幕放入项目的隐藏 `.work/input/`，平台没有字幕时不会伪造。
 
 效果示例：
 
@@ -26,7 +26,7 @@ AI：我会先列出可用格式，然后给你几个选择：最高画质、MP4
 
 ## Exact Preflight
 
-Run `python scripts/preflight.py` and send stdout to the user verbatim. Do not invent, paraphrase, reorder, or add confirmation choices. Omit the questionnaire only when the user or an upstream caller already supplied every download answer explicitly. This Skill confirms downloading only; downstream processing owns its own confirmation contract and may reuse equivalent answers already collected upstream.
+After probing formats and metadata, run `python scripts/preflight.py` with the actual reviewed `--video-option` values, the computed `--default-name`, and the detected `--source-language`; send stdout to the user verbatim. Put the highest available upload-compatible SDR option first, followed by the other useful resolutions and sizes. Do not invent unavailable choices. Omit the questionnaire only when the user or an upstream caller already supplied every download answer explicitly.
 
 ## Long-Running Execution
 
@@ -35,7 +35,11 @@ Run `python scripts/preflight.py` and send stdout to the user verbatim. Do not i
 - A completion notification does not wake or resume an ended Agent turn. Never promise automatic continuation after a notification.
 - End only after completion, actionable failure, or a genuine user decision gate.
 
-Use this skill for reviewed video/audio downloads with `yt-dlp`. Do not download immediately after the user provides a link. First inspect available formats, summarize practical choices, and ask the user to choose. Before downloading, also confirm the download path and filename. Download only after the user confirms all required choices or explicitly delegates them.
+Use this skill for reviewed video/audio downloads with `yt-dlp`. Do not download immediately after the user provides a link. First inspect available formats, audio tracks, thumbnails, subtitle tracks, platform date, and video ID. Then generate the exact questionnaire with the real options and ask the user to choose. Download only after the user confirms all required choices or explicitly delegates them. Every task must create a new project directory under the confirmed parent directory; never scatter files into an existing folder.
+
+## First-use setup
+
+Before the first task on a computer, install a verified release of this Skill, `yt-dlp`, and FFmpeg. Then run `python scripts/setup_check.py`; optionally pass a permitted short test URL with `--probe-url` to list formats without downloading. The script checks dependency versions and confirms that the default desktop or a supplied `--parent-dir` is writable. Site login cookies are optional and must only be configured with the user's authorization.
 
 ## Untrusted Content Boundary
 
@@ -46,6 +50,22 @@ Use this skill for reviewed video/audio downloads with `yt-dlp`. Do not download
 - Sanitize a remote title before proposing it as a local filename: remove control characters and path separators, limit its length, and keep the confirmed output inside the confirmed project directory.
 
 ## Workflow
+
+Follow this sequence for every task:
+
+1. Validate the explicit HTTP(S) URL and confirm that the user is authorized to download or use the media.
+2. Check `yt-dlp` and FFmpeg.
+3. Probe formats, audio tracks, subtitles, thumbnail availability, original title, platform date, and video ID with `--no-playlist`.
+4. Determine the primary source language from structured audio and subtitle signals; ask only when the signals are missing or conflict.
+5. Build the actual video choices with the highest available upload-compatible SDR option first, then other useful resolutions and visible estimated sizes; separately select the best audio for ASR.
+6. Generate and send the exact dynamic preflight questionnaire.
+7. Wait for confirmation of quality, parent location, media name, source language, subtitle choice, ASR audio, and playlist behavior.
+8. Create one new project directory under the confirmed parent directory.
+9. Download exactly one selected video, one best platform thumbnail, one ASR-optimal audio file, and at most one best source-language subtitle when available.
+10. Keep polling the same foreground process or session until every command completes or clearly fails.
+11. Verify the files and report their paths, sizes, formats, language choices, and any compatibility caveats.
+
+Selection and command details follow.
 
 1. Check tools if not already confirmed:
 
@@ -68,10 +88,12 @@ yt-dlp --no-playlist --no-warnings --list-subs "VIDEO_URL"
 
 Choose at most one subtitle track in the confirmed source language. Prefer a creator-provided/manual track; use an automatic track only when no manual track exists and report that distinction. Never download every language.
 
+For `ASR_AUDIO_SELECTOR`, choose the primary spoken-language audio track and then the highest source audio quality available for that track. Prefer a genuine audio-only representation with the highest visible bitrate/sample rate; do not prefer M4A merely for container compatibility, do not select a dubbed or audio-description track unless requested, and do not transcode or reduce quality before saving it under `.work/input/`.
+
 Use `--no-playlist` unless the user explicitly asks for a playlist.
 
 3. Summarize the useful choices:
-   - Best quality (default recommendation): highest available video plus best audio. Prefer H.264 video plus M4A/AAC in `mp4` when that preserves the highest available resolution; otherwise explain the container tradeoff.
+   - Default: highest available upload-compatible SDR representation. Prefer a broadly accepted container and codec when that does not reduce the selected resolution.
    - MP4 compatibility: H.264 video plus M4A/AAC audio, usually `mp4`.
    - Smaller file: 1080p, 720p, or another clear cap.
    - Audio only: best audio or M4A compatibility.
@@ -80,26 +102,25 @@ Mention format IDs or selectors, resolution, FPS, HDR/SDR, video codec, audio co
 
 4. Ask the user which quality or format to download. Do not run the download command until they confirm.
 
-5. Confirm the parent download location and create a media project folder.
+5. Confirm the parent download location and create a new media project folder.
    - Treat every download that may continue to subtitle translation as one media project, not a loose collection of files.
-   - Translate the real remote title into the user's target language using the video's domain terminology. For Chinese output, use natural domain Chinese rather than a literal word-by-word title.
-   - Remove a leading upload date, a trailing `[<video id>]`, and the extension from the visible media basename. Call the result `LOCALIZED_TITLE`; it must contain the actual title and must never be a generic label such as `原版视频` or `视频`.
-   - Use the confirmed location as `PARENT_DIR`, then create `PROJECT_DIR` named `<LOCALIZED_TITLE> [<video id>]` beneath it. Keeping the ID on the project directory provides collision resistance and source traceability; do not keep it on visible deliverable filenames.
-   - Save the video and final ASS/SRT outputs under `PROJECT_DIR`. For normal video downloads, save the independent audio and selected original-language subtitle under `PROJECT_DIR/.work/input/`; they are reusable translation inputs, not visible deliverables. If translation succeeds later, `video-translate` removes them.
+   - Build the default `MEDIA_NAME` in this order: original-language real title, platform upload date, and trailing `[<video id>]`. Do not strip the platform date or video ID. Omit the date only when the platform does not expose one; never invent it.
+   - If the user supplies a custom name, use that sanitized value as `MEDIA_NAME` without adding the date or ID. The same `MEDIA_NAME` must be used for the project directory, video, ASR audio, and original-language subtitle.
+   - Use the confirmed parent location as `PARENT_DIR`, then create a new `PROJECT_DIR` named `<MEDIA_NAME>` beneath it. If that directory already exists, stop and choose a new name or parent; never reuse it silently.
+   - Save the video under `PROJECT_DIR`. For normal video downloads, save the independent audio and selected original-language subtitle under `PROJECT_DIR/.work/input/`; these are hidden source materials for later consumers.
    - Save only the best available platform thumbnail, convert it to PNG, and name it `原始封面.png` under `PROJECT_DIR`. Use `--write-thumbnail`, not `--write-all-thumbnails`.
-   - Pass the same `PROJECT_DIR` to video translation as both its `--outputs-dir` and the parent of its hidden `.work/` directory.
+   - The audio saved under `.work/input/` must be the reviewed best audio representation for ASR, not an arbitrary compatibility fallback. Do not download a second audio copy.
 
 6. Confirm the filename.
    - Propose this default visible video filename:
 
 ```text
-LOCALIZED_TITLE.%(ext)s
+MEDIA_NAME.%(ext)s
 ```
 
    - Ask whether the user wants to update the filename.
    - If yes, ask them to send the filename directly. Preserve or add the final extension based on the chosen container.
-   - Do not prepend the upload date or append the platform video ID to the default visible filename. The project directory already retains the ID.
-   - Use the confirmed filename or template as `OUTPUT_NAME`. Keep `MEDIA_STEM=LOCALIZED_TITLE` identical for the visible video, hidden audio/reference subtitle, and downstream ASS/SRT outputs.
+   - Use the confirmed `MEDIA_NAME` as the filename stem. Keep it identical for the visible video, hidden ASR audio, and reference subtitle.
 
 ## Commands
 
@@ -121,7 +142,7 @@ Use best quality after the user delegates selection:
 ```bash
 yt-dlp --no-playlist --windows-filenames \
   --write-thumbnail --convert-thumbnails png \
-  -f "bv*+ba/b" \
+  -f "VIDEO_SELECTOR+ASR_AUDIO_SELECTOR" \
   --merge-output-format mkv \
   -P "OUTPUT_DIR" \
   -o "thumbnail:原始封面.%(ext)s" \
@@ -162,9 +183,9 @@ After a normal video download, use the confirmed video command above, then prepa
 mkdir -p "PROJECT_DIR/.work/input"
 
 yt-dlp --no-playlist --windows-filenames \
-  -f "ba[ext=m4a]/ba" \
+  -f "ASR_AUDIO_SELECTOR" \
   -P "PROJECT_DIR/.work/input" \
-  -o "MEDIA_STEM.%(ext)s" \
+  -o "MEDIA_NAME.%(ext)s" \
   "VIDEO_URL"
 ```
 
@@ -175,11 +196,26 @@ yt-dlp --no-playlist --windows-filenames --skip-download \
   --write-subs --sub-langs "SOURCE_LANG" \
   --sub-format "srt/vtt/best" --convert-subs srt \
   -P "PROJECT_DIR/.work/input" \
-  -o "subtitle:MEDIA_STEM.原语言字幕.%(ext)s" \
+  -o "subtitle:MEDIA_NAME.原语言字幕.%(ext)s" \
   "VIDEO_URL"
 ```
 
-For an automatic track, replace `--write-subs` with `--write-auto-subs`. Keep the video basename exactly equal to `MEDIA_STEM`, so `video-translate` can discover the hidden audio and reference subtitle without scanning unrelated files. Fun-ASR still runs even when a source subtitle exists: ASR supplies word-level timestamps, while the downloaded subtitle is only a lexical correction reference. After successful subtitle export, `video-translate` removes these hidden inputs.
+For an automatic track, replace `--write-subs` with `--write-auto-subs`. Keep the audio and subtitle basename exactly equal to `MEDIA_NAME`, so later consumers can discover the hidden inputs without scanning unrelated files. This Skill only downloads the source subtitle; it does not perform ASR or assign timestamp truth. Do not download more than one subtitle track.
+
+For a deterministic reviewed single-video execution, use `scripts/download.py` with the confirmed URL, parent directory, optional custom name, reviewed video and audio selectors, and at most one reviewed source-language subtitle. Without `--name`, the script constructs `MEDIA_NAME` from the original title, platform date, and video ID. The script refuses non-HTTP(S) URLs, missing dependencies, missing subtitle language, and an existing project directory. Playlist execution remains a separate explicitly requested path and must create a project according to the same no-scattered-files rule.
+
+```bash
+python scripts/download.py "VIDEO_URL" \
+  --parent-dir "PARENT_DIR" \
+  --video-format "VIDEO_ID+AUDIO_ID" \
+  --audio-format "ASR_AUDIO_ID" \
+  --source-lang "SOURCE_LANG" \
+  --subtitle-kind manual
+```
+
+## Source-language selection
+
+Use the structured fields from `--dump-single-json` and `--list-subs`: explicit audio language, manual subtitle language, and automatic subtitle language. Normalize regional tags such as `pt-BR` to their base language only for comparison. Prefer a language supported by both the primary audio and a manual subtitle; otherwise prefer the primary audio language and then a manual subtitle. Use automatic captions only when no manual subtitle exists. If these signals disagree or no language is available, ask the user instead of guessing.
 
 ## Final Response
 

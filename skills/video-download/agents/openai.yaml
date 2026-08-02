@@ -1,4 +1,4 @@
 interface:
   display_name: "一键加速视频下载"
-  short_description: "下载最高画质视频与原始封面，并为翻译流程准备隐藏音频和原字幕。"
-  default_prompt: "使用 $video-download 时先原样发送 scripts/preflight.py 的固定下载问卷；上游已经完成等价下载确认时复用答案，只补问缺失或矛盾项。下载前把真实外文标题按领域术语翻译为中文，去掉日期、平台 ID 和扩展名；可见视频和后续字幕共用中文净标题，项目目录可保留 [视频 ID] 防冲突。下载及后续任务必须保持前台或持续轮询同一 session，禁止结束轮次等待通知。"
+  short_description: "下载最高可用 SDR 视频、ASR 最佳音频、原字幕与平台原始封面。"
+  default_prompt: "使用 $video-download 时先探测实际格式，再把最高可用 SDR 兼容方案放在首位，并通过 scripts/preflight.py 原样发送包含真实分辨率和大小选项的问卷。默认保存到桌面下的新项目文件夹，名称顺序为原语言真实标题、平台日期、尾部视频 ID；自定义名称同时应用到文件夹、视频、ASR 音频和字幕。使用 scripts/download.py 确定性执行，下载期间持续轮询同一 session。"

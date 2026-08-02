@@ -73,11 +73,11 @@ def audit() -> tuple[dict, bool]:
             {
                 "slug": item["slug"],
                 "stable_id": item["skill_id"],
-                "github_path": f"https://github.com/aiaaaa4/ai-landing-skills/tree/main/{item['path']}",
+                "github_path": f"https://github.com/{repository['owner']}/{repository['name']}/tree/{repository['branch']}/{item['path']}",
                 "clawhub": clawhub,
                 "skills_sh": {
                     "mode": "asynchronous GitHub snapshot and audits",
-                    "url": f"https://www.skills.sh/aiaaaa4/ai-landing-skills/{item['slug']}",
+                    "url": f"https://www.skills.sh/{repository['owner']}/{repository['name']}/{item['slug']}",
                 },
                 "skillhub": {
                     "mode": "manual maintenance or uncontrolled ClawHub mirror",
