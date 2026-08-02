@@ -150,10 +150,19 @@ def main() -> int:
     ]
     audio_files = [
         path
-        for path in input_dir.glob(f"{media_name}.*")
-        if "原语言字幕" not in path.name and not path.name.endswith(".part")
+        for path in input_dir.iterdir()
+        if path.is_file()
+        and path.name.startswith(f"{media_name}.")
+        and "原语言字幕" not in path.name
+        and not path.name.endswith(".part")
     ]
-    subtitle_files = list(input_dir.glob(f"{media_name}.原语言字幕*.srt"))
+    subtitle_files = [
+        path
+        for path in input_dir.iterdir()
+        if path.is_file()
+        and path.name.startswith(f"{media_name}.原语言字幕")
+        and path.suffix.lower() == ".srt"
+    ]
     if len(video_files) != 1:
         fail(f"expected exactly one downloaded video, found {len(video_files)}")
     if len(audio_files) != 1:
