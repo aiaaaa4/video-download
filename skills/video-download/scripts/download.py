@@ -64,8 +64,15 @@ def main() -> int:
         "--name",
         help="confirmed custom name; otherwise use original title, platform date, and video ID",
     )
-    parser.add_argument("--video-format", required=True, help="reviewed yt-dlp video selector")
-    parser.add_argument("--audio-format", required=True, help="reviewed ASR audio selector")
+    parser.add_argument("--video-format", required=True, help="reviewed video-only selector")
+    parser.add_argument(
+        "--video-audio-format",
+        required=True,
+        help="reviewed best playback audio selector for the merged video",
+    )
+    parser.add_argument(
+        "--asr-audio-format", required=True, help="reviewed best ASR audio selector"
+    )
     parser.add_argument("--source-lang", help="one confirmed original subtitle language code")
     parser.add_argument("--subtitle-kind", choices=("none", "manual", "auto"), default="none")
     parser.add_argument("--merge-format", choices=("mkv", "mp4"), default="mkv")
@@ -88,7 +95,7 @@ def main() -> int:
     input_dir = project_dir / ".work" / "input"
     input_dir.mkdir(parents=True)
 
-    common = ["yt-dlp", "--windows-filenames", "--no-playlist"]
+    common = ["yt-dlp", "--windows-filenames", "--no-playlist", "--no-keep-video"]
     run(
         common
         + [
@@ -99,7 +106,7 @@ def main() -> int:
             "-o",
             f"thumbnail:{project_dir / '原始封面.%(ext)s'}",
             "-f",
-            args.video_format,
+            f"{args.video_format}+{args.video_audio_format}",
             "--merge-output-format",
             args.merge_format,
             "-o",
@@ -111,7 +118,7 @@ def main() -> int:
         common
         + [
             "-f",
-            args.audio_format,
+            args.asr_audio_format,
             "-P",
             str(input_dir),
             "-o",
@@ -179,6 +186,11 @@ def main() -> int:
                 "asr_audio": str(audio_files[0]),
                 "source_subtitle": str(subtitle_files[0]) if subtitle_files else None,
                 "original_thumbnail": str(cover) if cover.is_file() else None,
+                "formats": {
+                    "video": args.video_format,
+                    "video_audio": args.video_audio_format,
+                    "asr_audio": args.asr_audio_format,
+                },
             },
             ensure_ascii=False,
             indent=2,

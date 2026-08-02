@@ -32,6 +32,8 @@ class PreflightQuestionnaireTest(unittest.TestCase):
         self.assertIn("Lezione italiana 2026-08-02 [abc123]", text)
         self.assertIn("意大利语 (it)", text)
         self.assertIn("最适合 ASR 转写的最佳音频", text)
+        self.assertIn("最佳播放音轨与视频流合并", text)
+        self.assertIn("不保留独立视频流和该播放音轨", text)
         self.assertIn("自动创建新的独立项目文件夹", text)
         self.assertIn("确认默认设置", text)
         self.assertNotIn("翻译目标与交付", text)

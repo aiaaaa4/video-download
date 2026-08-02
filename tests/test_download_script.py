@@ -42,6 +42,7 @@ class DownloadScriptTests(unittest.TestCase):
     def test_main_creates_one_deterministic_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             parent = Path(tmp)
+            commands: list[list[str]] = []
             metadata = {
                 "title": "Lezione italiana",
                 "upload_date": "20260802",
@@ -49,6 +50,7 @@ class DownloadScriptTests(unittest.TestCase):
             }
 
             def fake_run(command: list[str]) -> None:
+                commands.append(command)
                 project = parent / "Lezione italiana 2026-08-02 [abc123]"
                 input_dir = project / ".work" / "input"
                 if "--write-thumbnail" in command:
@@ -69,8 +71,10 @@ class DownloadScriptTests(unittest.TestCase):
                 "--parent-dir",
                 str(parent),
                 "--video-format",
-                "137+140",
-                "--audio-format",
+                "137",
+                "--video-audio-format",
+                "140",
+                "--asr-audio-format",
                 "251",
                 "--source-lang",
                 "it",
@@ -93,6 +97,19 @@ class DownloadScriptTests(unittest.TestCase):
             self.assertTrue(Path(report["asr_audio"]).is_file())
             self.assertTrue(Path(report["source_subtitle"]).is_file())
             self.assertTrue(Path(report["original_thumbnail"]).is_file())
+            self.assertEqual(report["formats"]["video"], "137")
+            self.assertEqual(report["formats"]["video_audio"], "140")
+            self.assertEqual(report["formats"]["asr_audio"], "251")
+            self.assertIn("--no-keep-video", commands[0])
+            self.assertEqual(commands[0][commands[0].index("-f") + 1], "137+140")
+            self.assertEqual(commands[1][commands[1].index("-f") + 1], "251")
+            project = parent / "Lezione italiana 2026-08-02 [abc123]"
+            root_media = [
+                path
+                for path in project.iterdir()
+                if path.is_file() and path.name != "原始封面.png"
+            ]
+            self.assertEqual(len(root_media), 1)
 
 
 if __name__ == "__main__":

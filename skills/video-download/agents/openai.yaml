@@ -1,4 +1,4 @@
 interface:
   display_name: "一键加速视频下载"
-  short_description: "下载最高可用 SDR 视频、ASR 最佳音频、原字幕与平台原始封面。"
-  default_prompt: "使用 $video-download 时先探测实际格式，再把最高可用 SDR 兼容方案放在首位，并通过 scripts/preflight.py 原样发送包含真实分辨率和大小选项的问卷。默认保存到桌面下的新项目文件夹，名称顺序为原语言真实标题、平台日期、尾部视频 ID；自定义名称同时应用到文件夹、视频、ASR 音频和字幕。使用 scripts/download.py 确定性执行，下载期间持续轮询同一 session。"
+  short_description: "合并最佳播放音轨，并独立保存 ASR 最佳音频、原字幕与封面。"
+  default_prompt: "使用 $video-download 时先探测实际格式，再把最高可用 SDR 兼容方案放在首位，并通过 scripts/preflight.py 原样发送包含真实分辨率和大小选项的问卷。分别选择纯视频流、用于合并的最佳播放音轨和独立保存的 ASR 最佳音频；合并成功后删除纯视频流和播放音轨中间文件。默认保存到桌面下的新项目文件夹，名称顺序为原语言真实标题、平台日期、尾部视频 ID。使用 scripts/download.py 确定性执行，下载期间持续轮询同一 session。"
