@@ -61,15 +61,22 @@ class DownloadScriptTests(unittest.TestCase):
                 project = parent / "Lezione italiana 2026-08-02 [abc123]"
                 input_dir = project / ".work" / "input"
                 if "--write-thumbnail" in command:
-                    (project / "Lezione italiana 2026-08-02 [abc123].mp4").write_bytes(b"video")
-                    (project / "原始封面.png").write_bytes(b"cover")
+                    output = Path(command[command.index("-o", command.index("-f")) + 1])
+                    output.with_suffix(".mp4").write_bytes(b"video source")
+                    (input_dir / "原始封面.png").write_bytes(b"cover")
                 elif "--skip-download" in command:
                     (input_dir / "Lezione italiana 2026-08-02 [abc123].原语言字幕.it.srt").write_text(
                         "subtitle", encoding="utf-8"
                     )
+                elif command[0] == "ffmpeg":
+                    Path(command[-1]).write_bytes(b"merged video")
+                elif "播放音频" in command[command.index("-o") + 1]:
+                    (input_dir / "Lezione italiana 2026-08-02 [abc123].播放音频.m4a").write_bytes(
+                        b"playback audio"
+                    )
                 else:
-                    (input_dir / "Lezione italiana 2026-08-02 [abc123].opus").write_bytes(
-                        b"audio"
+                    (input_dir / "Lezione italiana 2026-08-02 [abc123].ASR音频.opus").write_bytes(
+                        b"ASR audio"
                     )
 
             argv = [
@@ -101,22 +108,24 @@ class DownloadScriptTests(unittest.TestCase):
 
             report = json.loads(print_mock.call_args.args[0])
             self.assertTrue(Path(report["video"]).is_file())
+            self.assertTrue(Path(report["playback_audio"]).is_file())
             self.assertTrue(Path(report["asr_audio"]).is_file())
             self.assertTrue(Path(report["source_subtitle"]).is_file())
             self.assertTrue(Path(report["original_thumbnail"]).is_file())
             self.assertEqual(report["formats"]["video"], "137")
             self.assertEqual(report["formats"]["video_audio"], "140")
             self.assertEqual(report["formats"]["asr_audio"], "251")
-            self.assertIn("--no-keep-video", commands[0])
-            self.assertEqual(commands[0][commands[0].index("-f") + 1], "137+140")
-            self.assertEqual(commands[1][commands[1].index("-f") + 1], "251")
+            self.assertEqual(commands[0][commands[0].index("-f") + 1], "137")
+            self.assertEqual(commands[1][commands[1].index("-f") + 1], "140")
+            self.assertIn(".播放音频.%(ext)s", commands[1][commands[1].index("-o") + 1])
+            self.assertEqual(commands[2][0], "ffmpeg")
+            self.assertEqual(commands[3][commands[3].index("-f") + 1], "251")
+            self.assertIn(".ASR音频.%(ext)s", commands[3][commands[3].index("-o") + 1])
             project = parent / "Lezione italiana 2026-08-02 [abc123]"
-            root_media = [
-                path
-                for path in project.iterdir()
-                if path.is_file() and path.name != "原始封面.png"
-            ]
+            root_media = [path for path in project.iterdir() if path.is_file()]
             self.assertEqual(len(root_media), 1)
+            input_files = [path for path in (project / ".work" / "input").iterdir() if path.is_file()]
+            self.assertEqual(len(input_files), 4)
 
 
 if __name__ == "__main__":

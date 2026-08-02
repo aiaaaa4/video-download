@@ -22,6 +22,17 @@ def run(command: list[str]) -> None:
     subprocess.run(command, check=True)
 
 
+def single_file(directory: Path, prefix: str, role: str) -> Path:
+    matches = [
+        path
+        for path in directory.iterdir()
+        if path.is_file() and path.name.startswith(prefix) and not path.name.endswith(".part")
+    ]
+    if len(matches) != 1:
+        fail(f"expected exactly one {role} file, found {len(matches)}")
+    return matches[0]
+
+
 def prepare_parent(path: Path) -> Path:
     parent = path.expanduser().resolve()
     try:
@@ -109,25 +120,61 @@ def main() -> int:
     input_dir = project_dir / ".work" / "input"
     input_dir.mkdir(parents=True)
 
-    common = ["yt-dlp", "--windows-filenames", "--no-playlist", "--no-keep-video"]
-    run(
-        common
-        + [
-            "--no-overwrites",
-            "--write-thumbnail",
-            "--convert-thumbnails",
-            "png",
-            "-o",
-            f"thumbnail:{project_dir / '原始封面.%(ext)s'}",
-            "-f",
-            f"{args.video_format}+{args.video_audio_format}",
-            "--merge-output-format",
-            args.merge_format,
-            "-o",
-            str(project_dir / f"{media_name}.%(ext)s"),
-            args.url,
+    common = ["yt-dlp", "--windows-filenames", "--no-playlist", "--no-overwrites"]
+    with tempfile.TemporaryDirectory(dir=project_dir, prefix=".download-staging-") as staging:
+        staging_dir = Path(staging)
+        run(
+            common
+            + [
+                "--write-thumbnail",
+                "--convert-thumbnails",
+                "png",
+                "-o",
+                f"thumbnail:{input_dir / '原始封面.%(ext)s'}",
+                "-f",
+                args.video_format,
+                "-o",
+                str(staging_dir / "video-source.%(ext)s"),
+                args.url,
+            ]
+        )
+        video_source = single_file(staging_dir, "video-source.", "video source")
+
+        run(
+            common
+            + [
+                "-f",
+                args.video_audio_format,
+                "-P",
+                str(input_dir),
+                "-o",
+                f"{media_name}.播放音频.%(ext)s",
+                args.url,
+            ]
+        )
+        playback_audio = single_file(input_dir, f"{media_name}.播放音频.", "playback audio")
+
+        video_output = project_dir / f"{media_name}.{args.merge_format}"
+        ffmpeg_command = [
+            "ffmpeg",
+            "-hide_banner",
+            "-nostdin",
+            "-n",
+            "-i",
+            str(video_source),
+            "-i",
+            str(playback_audio),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c",
+            "copy",
         ]
-    )
+        if args.merge_format == "mp4":
+            ffmpeg_command.extend(["-movflags", "+faststart"])
+        run(ffmpeg_command + [str(video_output)])
+
     run(
         common
         + [
@@ -136,10 +183,11 @@ def main() -> int:
             "-P",
             str(input_dir),
             "-o",
-            f"{media_name}.%(ext)s",
+            f"{media_name}.ASR音频.%(ext)s",
             args.url,
         ]
     )
+    asr_audio = single_file(input_dir, f"{media_name}.ASR音频.", "ASR audio")
 
     if args.subtitle_kind != "none":
         flags = "--write-subs" if args.subtitle_kind == "manual" else "--write-auto-subs"
@@ -162,21 +210,7 @@ def main() -> int:
             ]
         )
 
-    video_files = [
-        path
-        for path in project_dir.iterdir()
-        if path.is_file()
-        and path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".avif"}
-        and not path.name.endswith(".part")
-    ]
-    audio_files = [
-        path
-        for path in input_dir.iterdir()
-        if path.is_file()
-        and path.name.startswith(f"{media_name}.")
-        and "原语言字幕" not in path.name
-        and not path.name.endswith(".part")
-    ]
+    video_files = [path for path in project_dir.iterdir() if path.is_file()]
     subtitle_files = [
         path
         for path in input_dir.iterdir()
@@ -186,18 +220,17 @@ def main() -> int:
     ]
     if len(video_files) != 1:
         fail(f"expected exactly one downloaded video, found {len(video_files)}")
-    if len(audio_files) != 1:
-        fail(f"expected exactly one ASR audio file, found {len(audio_files)}")
     if args.subtitle_kind != "none" and len(subtitle_files) != 1:
         fail("the selected source-language subtitle was not created")
 
-    cover = project_dir / "原始封面.png"
+    cover = input_dir / "原始封面.png"
     print(
         json.dumps(
             {
                 "project_dir": str(project_dir),
                 "video": str(video_files[0]),
-                "asr_audio": str(audio_files[0]),
+                "playback_audio": str(playback_audio),
+                "asr_audio": str(asr_audio),
                 "source_subtitle": str(subtitle_files[0]) if subtitle_files else None,
                 "original_thumbnail": str(cover) if cover.is_file() else None,
                 "formats": {

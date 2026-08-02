@@ -1,4 +1,4 @@
 interface:
   display_name: "一键加速视频下载"
-  short_description: "合并最佳播放音轨，并独立保存 ASR 最佳音频、原字幕与封面。"
-  default_prompt: "使用 $video-download 时，用户询问用法只回复“直接发送下载链接即可。”收到 URL 后先运行 scripts/setup_check.py --status；仅当返回 first-use-required 时，原样告知“首次使用video-download skill，我将执行一次依赖/环境检查和更新，后续任务将跳过此步骤。”并执行一次 setup_check.py。随后探测实际格式，把最高可用 SDR 兼容方案放在首位，并通过 scripts/preflight.py 原样发送问卷。分别选择纯视频流、用于合并的最佳播放音轨和独立保存的 ASR 最佳音频；使用 scripts/download.py 确定性执行并持续轮询。"
+  short_description: "合并成片，并在素材目录保留双音频、原字幕与封面。"
+  default_prompt: "使用 $video-download 时，用法询问只回复“直接发送下载链接即可。”；首次收到 URL 时按状态执行一次环境检查并向用户汇报 yt-dlp 与 FFmpeg 版本，随后探测实际格式并发送七项下载问卷；确认后把成片保存到项目根目录，把播放音频、ASR 音频、原语言 SRT 字幕和最高质量 PNG 封面保存到 .work/input/。"

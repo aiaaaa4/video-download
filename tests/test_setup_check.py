@@ -28,6 +28,7 @@ class SetupCheckTests(unittest.TestCase):
             source,
         )
         self.assertIn("python scripts/setup_check.py --status", source)
+        self.assertIn("installed versions of both yt-dlp and FFmpeg", source)
 
     def test_status_reports_first_use_then_ready(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -73,6 +74,10 @@ class SetupCheckTests(unittest.TestCase):
             state = json.loads(state_file.read_text(encoding="utf-8"))
             self.assertTrue(state["completed"])
             self.assertEqual(state["yt_dlp_version"], "2026.07.04")
+            self.assertEqual(state["ffmpeg_version"], "ffmpeg version 8.1.2")
+            output = [call.args[0] for call in print_mock.call_args_list]
+            self.assertIn("yt-dlp: 2026.07.04", output)
+            self.assertIn("ffmpeg: ffmpeg version 8.1.2", output)
             self.assertIn("completed", print_mock.call_args_list[-1].args[0])
 
             with (
