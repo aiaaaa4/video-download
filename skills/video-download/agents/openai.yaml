@@ -1,4 +1,4 @@
 interface:
   display_name: "一键加速视频下载"
-  short_description: "合并成片，并在素材目录保留双音频、原字幕与封面。"
-  default_prompt: "使用 $video-download 时，用法询问只回复“直接发送下载链接即可。”；首次收到 URL 时按状态执行一次环境检查并向用户汇报 yt-dlp 与 FFmpeg 版本，随后探测实际格式并发送七项下载问卷；确认后把成片保存到项目根目录，把播放音频、ASR 音频、原语言 SRT 字幕和最高质量 PNG 封面保存到 .work/input/。"
+  short_description: "合并成片，并保留 ASR 校对音频、原字幕与封面素材。"
+  default_prompt: "使用 $video-download 时，用法询问只回复“直接发送下载链接即可。”；首次收到 URL 时按状态执行一次环境检查并向用户汇报 yt-dlp 与 FFmpeg 版本，随后探测实际格式并发送七项下载问卷；确认后把成片保存到项目根目录，删除合成用临时流，并把 ASR 校对音频、原语言 SRT 字幕和最高质量 PNG 封面保存到 .work/input/。"

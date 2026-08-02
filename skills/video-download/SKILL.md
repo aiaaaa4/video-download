@@ -1,6 +1,6 @@
 ---
 name: video-download
-description: 使用 yt-dlp 与 FFmpeg 下载、合并和检查用户获准获取的公开视频，并在 .work/input/ 保留播放音频、ASR 最佳音频、最佳原语言字幕及最高质量 PNG 封面。Use when Codex is asked to inspect formats or download permitted media with deterministic project outputs; confirm the download manifest, quality, filename, path, source language, and playlist behavior before downloading.
+description: 使用 yt-dlp 与 FFmpeg 下载、合并和检查用户获准获取的公开视频，删除合成用临时流，并在 .work/input/ 保留 ASR 校对音频、最佳原语言字幕及最高质量 PNG 封面。Use when Codex is asked to inspect formats or download permitted media with deterministic project outputs; confirm the download manifest, quality, filename, path, source language, and playlist behavior before downloading.
 ---
 
 # 一键加速视频下载
@@ -11,7 +11,7 @@ description: 使用 yt-dlp 与 FFmpeg 下载、合并和检查用户获准获取
 
 核心价值：避免拿到链接就直接下载，减少下错清晰度、下错容器、文件名混乱、HDR/编码不兼容、输出位置不清楚等问题。默认适用于 YouTube、YouTube Shorts、Vimeo、TikTok、Instagram、X/Twitter、Facebook、Twitch、Bilibili、Dailymotion、SoundCloud、Bandcamp、Reddit 及其他 `yt-dlp` 支持的来源；完整范围以 [yt-dlp 官方站点清单](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) 为准。播放列表只在用户明确要求时处理。
 
-快速开始：把视频链接发给 AI。AI 会先探测实际格式，在问卷中默认选择最高可用 SDR 兼容方案，并列出其他分辨率、编码和可见的估算大小供用户选择。默认名称按“原语言真实标题、平台日期、尾部视频 ID”组成，默认保存到桌面下的新项目文件夹；用户可以在每次任务中修改这些默认值。普通视频会下载纯视频流与最佳播放音轨并使用 FFmpeg 合并，只把成片放在项目根目录；播放音频、另行下载的 ASR 最佳音频、最多一份 SRT 原语言字幕及最高质量 PNG 封面放入 `.work/input/`。
+快速开始：把视频链接发给 AI。AI 会先探测实际格式，在问卷中默认选择最高可用 SDR 兼容方案，并列出其他分辨率、编码和可见的估算大小供用户选择。默认名称按“原语言真实标题、平台日期、尾部视频 ID”组成，默认保存到桌面下的新项目文件夹；用户可以在每次任务中修改这些默认值。普通视频会下载纯视频流与最佳播放音轨并使用 FFmpeg 合并，成功后删除两份临时流，只把成片放在项目根目录；另行下载的 ASR 最佳音频以“`视频名.ASR校对音频.<原始扩展名>`”保存，和最多一份 SRT 原语言字幕及最高质量 PNG 封面放入 `.work/input/`。
 
 效果示例：
 
@@ -69,7 +69,7 @@ Follow this sequence for every task:
 6. Generate and send the exact dynamic preflight questionnaire.
 7. Wait for confirmation of quality, parent location, media name, source language, subtitle choice, playback audio, ASR audio, and playlist behavior.
 8. Create the confirmed parent directory when needed, verify it is writable, and create one new project directory beneath it.
-9. Download one video-only stream and one best playback audio stream, merge them with FFmpeg, discard only the temporary video-only stream after a successful merge, and retain the playback audio under `.work/input/`. Also download one separate ASR-optimal audio file, one best platform thumbnail converted to PNG, and at most one source-language subtitle normalized to SRT when available; keep all four supporting assets under `.work/input/`.
+9. Download one video-only stream and one best playback audio stream into temporary staging, merge them with FFmpeg, and delete both temporary streams after a successful merge. Also download one separate ASR-optimal audio file named `MEDIA_NAME.ASR校对音频.%(ext)s`, one best platform thumbnail converted to PNG, and at most one source-language subtitle normalized to SRT when available; keep only these supporting assets under `.work/input/`.
 10. Keep polling the same foreground process or session until every command completes or clearly fails.
 11. Verify the files and report their paths, sizes, formats, language choices, and any compatibility caveats.
 
@@ -96,7 +96,7 @@ yt-dlp --no-playlist --no-warnings --list-subs "VIDEO_URL"
 
 Choose at most one subtitle track in the confirmed source language. Prefer a creator-provided/manual track; use an automatic track only when no manual track exists and report that distinction. Never download every language.
 
-For `VIDEO_AUDIO_SELECTOR`, choose the best primary-language playback track that is compatible with the selected video container. Merge this track into the visible video and retain the same source audio separately under `.work/input/`. For `ASR_AUDIO_SELECTOR`, independently choose the primary spoken-language audio track with the highest source quality useful for recognition. Prefer a genuine audio-only representation with the highest visible bitrate/sample rate; do not prefer M4A merely for container compatibility, do not select a dubbed or audio-description track unless requested, and do not transcode or reduce either retained audio file. The two selectors may resolve to the same platform format ID, but save two role-labeled files because they have separate downstream purposes.
+For `VIDEO_AUDIO_SELECTOR`, choose the best primary-language playback track compatible with the selected video container. Use it only for the visible-video merge and remove it with the temporary video-only stream after success. For `ASR_AUDIO_SELECTOR`, independently choose the primary spoken-language audio track with the highest source quality useful for recognition. Prefer a genuine audio-only representation with the highest visible bitrate/sample rate; do not prefer M4A merely for container compatibility, do not select a dubbed or audio-description track unless requested, and do not transcode or reduce the retained ASR review audio. The two selectors may resolve to the same platform format ID, but only the ASR selection remains as a separate local file.
 
 Use `--no-playlist` unless the user explicitly asks for a playlist.
 
@@ -113,10 +113,10 @@ Mention format IDs or selectors, resolution, FPS, HDR/SDR, video codec, audio co
 5. Confirm the parent download location and create a new media project folder.
    - Treat every download that may continue to subtitle translation as one media project, not a loose collection of files.
    - Build the default `MEDIA_NAME` in this order: original-language real title, platform upload date, and trailing `[<video id>]`. Do not strip the platform date or video ID. Omit the date only when the platform does not expose one; never invent it.
-   - If the user supplies a custom name, use that sanitized value as `MEDIA_NAME` without adding the date or ID. Use the same `MEDIA_NAME` for the project directory, video, both audio files, and original-language subtitle; append only role labels and extensions to supporting files.
+   - If the user supplies a custom name, use that sanitized value as `MEDIA_NAME` without adding the date or ID. Use the same `MEDIA_NAME` for the project directory, video, ASR review audio, and original-language subtitle; append only role labels and extensions to supporting files.
    - Use the confirmed parent location as `PARENT_DIR`, then create a new `PROJECT_DIR` named `<MEDIA_NAME>` beneath it. If that directory already exists, stop and choose a new name or parent; never reuse it silently.
-   - Save only the merged visible video under `PROJECT_DIR`; stage the video-only stream temporarily and remove it after a successful merge.
-   - Save the reviewed playback audio as `MEDIA_NAME.播放音频.%(ext)s` and the independently reviewed ASR audio as `MEDIA_NAME.ASR音频.%(ext)s` under `PROJECT_DIR/.work/input/`.
+   - Save only the merged visible video under `PROJECT_DIR`; stage the video-only stream and playback audio temporarily and remove both after a successful merge.
+   - Save the independently reviewed ASR audio as `MEDIA_NAME.ASR校对音频.%(ext)s` under `PROJECT_DIR/.work/input/`.
    - Save at most one selected original-language subtitle as SRT under `PROJECT_DIR/.work/input/`.
    - Save only the best available platform thumbnail, convert it to PNG, and name it `原始封面.png` under `PROJECT_DIR/.work/input/`. Use `--write-thumbnail`, not `--write-all-thumbnails`.
    - The ASR audio must be the reviewed best source representation for ASR, not merely the playback track copied under another name.
@@ -130,11 +130,11 @@ MEDIA_NAME.%(ext)s
 
    - Ask whether the user wants to update the filename.
    - If yes, ask them to send the filename directly. Preserve or add the final extension based on the chosen container.
-   - Use the confirmed `MEDIA_NAME` as the filename stem. Keep it identical for the visible video, both hidden audio files, and reference subtitle; role labels may follow the shared stem.
+   - Use the confirmed `MEDIA_NAME` as the filename stem. Keep it identical for the visible video, hidden ASR review audio, and reference subtitle; role labels may follow the shared stem.
 
 ## Deterministic execution
 
-Use explicit reviewed IDs with `scripts/download.py`. The script downloads the video-only stream to a temporary staging directory, downloads the playback audio to `.work/input/`, merges both with FFmpeg without transcoding, removes the temporary video stream, then downloads the independently selected ASR audio. It also saves the best thumbnail as `.work/input/原始封面.png` when available and normalizes at most one selected source-language subtitle to SRT. It refuses non-HTTP(S) URLs, missing dependencies, missing subtitle language, an existing project directory, or ambiguous output counts.
+Use explicit reviewed IDs with `scripts/download.py`. The script downloads the video-only stream and playback audio to a temporary staging directory, merges both with FFmpeg without transcoding, removes both temporary streams, then downloads the independently selected ASR audio as `.work/input/MEDIA_NAME.ASR校对音频.%(ext)s`. It also saves the best thumbnail as `.work/input/原始封面.png` when available and normalizes at most one selected source-language subtitle to SRT. It refuses non-HTTP(S) URLs, missing dependencies, missing subtitle language, an existing project directory, or ambiguous output counts.
 
 ```bash
 python scripts/download.py "VIDEO_URL" \
@@ -154,6 +154,6 @@ Use the structured fields from `--dump-single-json` and `--list-subs`: explicit 
 
 ## Final Response
 
-After downloading, report the saved media path, playback-audio path, ASR-audio path, source-subtitle path when present, `.work/input/原始封面.png` path when present, file sizes, all three selected format IDs or selectors, confirmed output directory, confirmed filename, whether the temporary video-only stream was removed, and any important caveats such as HDR, MKV playback, subtitles, or audio language. If the platform exposes no thumbnail, report that clearly instead of substituting a video frame.
+After downloading, report the saved media path, ASR-review-audio path, source-subtitle path when present, `.work/input/原始封面.png` path when present, file sizes, all three selected format IDs or selectors, confirmed output directory, confirmed filename, whether both temporary merge streams were removed, and any important caveats such as HDR, MKV playback, subtitles, or audio language. If the platform exposes no thumbnail, report that clearly instead of substituting a video frame.
 
 Remind the user to download only content they have permission to save or use when relevant.

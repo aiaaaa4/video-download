@@ -71,14 +71,13 @@ class DownloadScriptTests(unittest.TestCase):
                 elif command[0] == "ffmpeg":
                     Path(command[-1]).write_bytes(b"merged video")
                     (project / ".DS_Store").write_bytes(b"finder metadata")
-                elif "播放音频" in command[command.index("-o") + 1]:
-                    (input_dir / "Lezione italiana 2026-08-02 [abc123].播放音频.m4a").write_bytes(
-                        b"playback audio"
-                    )
+                elif "playback-audio" in command[command.index("-o") + 1]:
+                    playback_dir = Path(command[command.index("-P") + 1])
+                    (playback_dir / "playback-audio.m4a").write_bytes(b"playback audio")
                 else:
-                    (input_dir / "Lezione italiana 2026-08-02 [abc123].ASR音频.opus").write_bytes(
-                        b"ASR audio"
-                    )
+                    (
+                        input_dir / "Lezione italiana 2026-08-02 [abc123].ASR校对音频.opus"
+                    ).write_bytes(b"ASR audio")
 
             argv = [
                 "download.py",
@@ -109,8 +108,8 @@ class DownloadScriptTests(unittest.TestCase):
 
             report = json.loads(print_mock.call_args.args[0])
             self.assertTrue(Path(report["video"]).is_file())
-            self.assertTrue(Path(report["playback_audio"]).is_file())
             self.assertTrue(Path(report["asr_audio"]).is_file())
+            self.assertTrue(report["playback_audio_removed"])
             self.assertTrue(Path(report["source_subtitle"]).is_file())
             self.assertTrue(Path(report["original_thumbnail"]).is_file())
             self.assertEqual(report["formats"]["video"], "137")
@@ -118,10 +117,12 @@ class DownloadScriptTests(unittest.TestCase):
             self.assertEqual(report["formats"]["asr_audio"], "251")
             self.assertEqual(commands[0][commands[0].index("-f") + 1], "137")
             self.assertEqual(commands[1][commands[1].index("-f") + 1], "140")
-            self.assertIn(".播放音频.%(ext)s", commands[1][commands[1].index("-o") + 1])
+            self.assertEqual(commands[1][commands[1].index("-o") + 1], "playback-audio.%(ext)s")
+            self.assertNotEqual(commands[1][commands[1].index("-P") + 1], str(parent))
+            self.assertFalse(Path(commands[1][commands[1].index("-P") + 1]).exists())
             self.assertEqual(commands[2][0], "ffmpeg")
             self.assertEqual(commands[3][commands[3].index("-f") + 1], "251")
-            self.assertIn(".ASR音频.%(ext)s", commands[3][commands[3].index("-o") + 1])
+            self.assertIn(".ASR校对音频.%(ext)s", commands[3][commands[3].index("-o") + 1])
             project = parent / "Lezione italiana 2026-08-02 [abc123]"
             root_media = [
                 path
@@ -130,7 +131,8 @@ class DownloadScriptTests(unittest.TestCase):
             ]
             self.assertEqual(len(root_media), 1)
             input_files = [path for path in (project / ".work" / "input").iterdir() if path.is_file()]
-            self.assertEqual(len(input_files), 4)
+            self.assertEqual(len(input_files), 3)
+            self.assertFalse(any("播放音频" in path.name for path in input_files))
 
 
 if __name__ == "__main__":

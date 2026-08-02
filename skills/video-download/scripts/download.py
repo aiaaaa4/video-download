@@ -146,13 +146,13 @@ def main() -> int:
                 "-f",
                 args.video_audio_format,
                 "-P",
-                str(input_dir),
+                str(staging_dir),
                 "-o",
-                f"{media_name}.播放音频.%(ext)s",
+                "playback-audio.%(ext)s",
                 args.url,
             ]
         )
-        playback_audio = single_file(input_dir, f"{media_name}.播放音频.", "playback audio")
+        playback_audio = single_file(staging_dir, "playback-audio.", "playback audio")
 
         video_output = project_dir / f"{media_name}.{args.merge_format}"
         ffmpeg_command = [
@@ -183,11 +183,11 @@ def main() -> int:
             "-P",
             str(input_dir),
             "-o",
-            f"{media_name}.ASR音频.%(ext)s",
+            f"{media_name}.ASR校对音频.%(ext)s",
             args.url,
         ]
     )
-    asr_audio = single_file(input_dir, f"{media_name}.ASR音频.", "ASR audio")
+    asr_audio = single_file(input_dir, f"{media_name}.ASR校对音频.", "ASR review audio")
 
     if args.subtitle_kind != "none":
         flags = "--write-subs" if args.subtitle_kind == "manual" else "--write-auto-subs"
@@ -233,8 +233,8 @@ def main() -> int:
             {
                 "project_dir": str(project_dir),
                 "video": str(video_files[0]),
-                "playback_audio": str(playback_audio),
                 "asr_audio": str(asr_audio),
+                "playback_audio_removed": True,
                 "source_subtitle": str(subtitle_files[0]) if subtitle_files else None,
                 "original_thumbnail": str(cover) if cover.is_file() else None,
                 "formats": {
