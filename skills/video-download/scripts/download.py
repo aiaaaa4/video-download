@@ -210,7 +210,11 @@ def main() -> int:
             ]
         )
 
-    video_files = [path for path in project_dir.iterdir() if path.is_file()]
+    video_files = [
+        path
+        for path in project_dir.iterdir()
+        if path.is_file() and path.suffix.lower() in {".mp4", ".mkv"}
+    ]
     subtitle_files = [
         path
         for path in input_dir.iterdir()

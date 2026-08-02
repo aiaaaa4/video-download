@@ -70,6 +70,7 @@ class DownloadScriptTests(unittest.TestCase):
                     )
                 elif command[0] == "ffmpeg":
                     Path(command[-1]).write_bytes(b"merged video")
+                    (project / ".DS_Store").write_bytes(b"finder metadata")
                 elif "播放音频" in command[command.index("-o") + 1]:
                     (input_dir / "Lezione italiana 2026-08-02 [abc123].播放音频.m4a").write_bytes(
                         b"playback audio"
@@ -122,7 +123,11 @@ class DownloadScriptTests(unittest.TestCase):
             self.assertEqual(commands[3][commands[3].index("-f") + 1], "251")
             self.assertIn(".ASR音频.%(ext)s", commands[3][commands[3].index("-o") + 1])
             project = parent / "Lezione italiana 2026-08-02 [abc123]"
-            root_media = [path for path in project.iterdir() if path.is_file()]
+            root_media = [
+                path
+                for path in project.iterdir()
+                if path.is_file() and path.suffix.lower() in {".mp4", ".mkv"}
+            ]
             self.assertEqual(len(root_media), 1)
             input_files = [path for path in (project / ".work" / "input").iterdir() if path.is_file()]
             self.assertEqual(len(input_files), 4)
