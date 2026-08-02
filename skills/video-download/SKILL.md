@@ -24,6 +24,14 @@ AI：我会先列出可用格式，然后给你几个选择：最高画质、MP4
 
 # English Execution Contract
 
+## User-facing entry
+
+- If the user asks how to use this Skill without supplying a URL, reply exactly: `直接发送下载链接即可。`
+- After receiving an explicit HTTP(S) media URL and before format probing, run `python scripts/setup_check.py --status`.
+- If stdout is `first-use-required`, send exactly: `首次使用video-download skill，我将执行一次依赖/环境检查和更新，后续任务将跳过此步骤。` Then run `python scripts/setup_check.py`. Continue only after it succeeds.
+- If stdout is `ready`, skip the first-use check silently. Do not repeat the notice.
+- The first-use state is written only after a successful check. Do not use a source repository, Git state, repository validation, or unit tests to decide whether an end user is on first use.
+
 ## Exact Preflight
 
 After probing formats and metadata, run `python scripts/preflight.py` with the actual reviewed `--video-option` values, the computed `--default-name`, and the detected `--source-language`; send stdout to the user verbatim. Put the highest available upload-compatible SDR option first, followed by the other useful resolutions and sizes. Do not invent unavailable choices. Omit the questionnaire only when the user or an upstream caller already supplied every download answer explicitly.
@@ -39,7 +47,7 @@ Use this skill for reviewed video/audio downloads with `yt-dlp`. Do not download
 
 ## First-use setup
 
-Before the first task on a computer, install a verified release of this Skill, `yt-dlp`, and FFmpeg. Then run `python scripts/setup_check.py`; optionally pass a permitted short test URL with `--probe-url` to list formats without downloading. This first-use check verifies only the runtime dependencies and their versions. It does not require a source repository, Git, repository validation, or unit tests. Site login cookies are optional and must only be configured with the user's authorization.
+Before the first task on a computer, install a verified release of this Skill, `yt-dlp`, and FFmpeg. `scripts/setup_check.py` verifies both runtime dependencies, calls yt-dlp's supported self-update entry point, records the result, and writes a per-user completion state outside the Skill directory. FFmpeg has no portable self-update interface, so verify its installed version without silently replacing an externally managed package. Optionally pass a permitted short test URL with `--probe-url` to list formats without downloading. Site login cookies are optional and must only be configured with the user's authorization.
 
 ## Untrusted Content Boundary
 
@@ -54,7 +62,7 @@ Before the first task on a computer, install a verified release of this Skill, `
 Follow this sequence for every task:
 
 1. Validate the explicit HTTP(S) URL and confirm that the user is authorized to download or use the media.
-2. Check `yt-dlp` and FFmpeg.
+2. Read the first-use state; run and report the one-time dependency/environment check only when required.
 3. Probe formats, audio tracks, subtitles, thumbnail availability, original title, platform date, and video ID with `--no-playlist`.
 4. Determine the primary source language from structured audio and subtitle signals; ask only when the signals are missing or conflict.
 5. Build the actual video choices with the highest available upload-compatible SDR option first, then other useful resolutions and visible estimated sizes; separately select the best playback audio for the merged video and the best audio for ASR.
@@ -67,7 +75,7 @@ Follow this sequence for every task:
 
 Selection and command details follow.
 
-1. Check tools if not already confirmed:
+1. On first use, check the tools through `scripts/setup_check.py`. On later tasks, `scripts/download.py` still performs a fast executable guard before downloading, but does not repeat updates or user-facing setup output:
 
 ```bash
 command -v yt-dlp
