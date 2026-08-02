@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-from pathlib import Path
 from urllib.parse import urlsplit
 
 
@@ -22,23 +21,11 @@ def command_version(command: str, argument: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--parent-dir", type=Path, default=Path.home() / "Desktop")
     parser.add_argument("--probe-url", help="optional permitted http(s) URL; no download is performed")
     args = parser.parse_args()
 
-    parent = args.parent_dir.expanduser().resolve()
-    if not parent.is_dir():
-        raise SystemExit(f"ERROR: parent directory does not exist: {parent}")
-    test_path = parent / ".video-download-write-test"
-    try:
-        test_path.touch(exist_ok=False)
-        test_path.unlink()
-    except OSError as error:
-        raise SystemExit(f"ERROR: parent directory is not writable: {parent}: {error}") from error
-
     print(f"yt-dlp: {command_version('yt-dlp', '--version')}")
     print(f"ffmpeg: {command_version('ffmpeg', '-version')}")
-    print(f"parent directory: {parent}")
 
     if args.probe_url:
         parsed = urlsplit(args.probe_url)

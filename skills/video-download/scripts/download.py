@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -19,6 +20,19 @@ def fail(message: str) -> None:
 
 def run(command: list[str]) -> None:
     subprocess.run(command, check=True)
+
+
+def prepare_parent(path: Path) -> Path:
+    parent = path.expanduser().resolve()
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=parent, prefix=".video-download-write-", delete=True
+        ):
+            pass
+    except OSError as error:
+        fail(f"confirmed parent directory is not writable: {parent}: {error}")
+    return parent
 
 
 def safe_name(value: str) -> str:
@@ -86,12 +100,12 @@ def main() -> int:
     if args.subtitle_kind != "none" and not args.source_lang:
         fail("--source-lang is required when downloading a subtitle")
 
+    parent_dir = prepare_parent(args.parent_dir)
     info = probe(args.url)
     media_name = safe_name(args.name) if args.name else default_media_name(info)
-    project_dir = args.parent_dir.expanduser().resolve() / media_name
+    project_dir = parent_dir / media_name
     if project_dir.exists():
         fail(f"project directory already exists; choose a new parent or title: {project_dir}")
-    args.parent_dir.expanduser().resolve().mkdir(parents=True, exist_ok=True)
     input_dir = project_dir / ".work" / "input"
     input_dir.mkdir(parents=True)
 

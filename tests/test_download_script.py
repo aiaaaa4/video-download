@@ -39,6 +39,13 @@ class DownloadScriptTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             download.default_media_name({"id": "abc123"})
 
+    def test_prepare_parent_runs_at_task_time_and_cleans_probe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp) / "new-parent"
+            self.assertEqual(download.prepare_parent(parent), parent.resolve())
+            self.assertTrue(parent.is_dir())
+            self.assertEqual(list(parent.glob(".video-download-write-*")), [])
+
     def test_main_creates_one_deterministic_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             parent = Path(tmp)

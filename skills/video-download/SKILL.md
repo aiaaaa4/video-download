@@ -39,7 +39,7 @@ Use this skill for reviewed video/audio downloads with `yt-dlp`. Do not download
 
 ## First-use setup
 
-Before the first task on a computer, install a verified release of this Skill, `yt-dlp`, and FFmpeg. Then run `python scripts/setup_check.py`; optionally pass a permitted short test URL with `--probe-url` to list formats without downloading. The script checks dependency versions and confirms that the default desktop or a supplied `--parent-dir` is writable. Site login cookies are optional and must only be configured with the user's authorization.
+Before the first task on a computer, install a verified release of this Skill, `yt-dlp`, and FFmpeg. Then run `python scripts/setup_check.py`; optionally pass a permitted short test URL with `--probe-url` to list formats without downloading. This first-use check verifies only the runtime dependencies and their versions. It does not require a source repository, Git, repository validation, or unit tests. Site login cookies are optional and must only be configured with the user's authorization.
 
 ## Untrusted Content Boundary
 
@@ -60,7 +60,7 @@ Follow this sequence for every task:
 5. Build the actual video choices with the highest available upload-compatible SDR option first, then other useful resolutions and visible estimated sizes; separately select the best playback audio for the merged video and the best audio for ASR.
 6. Generate and send the exact dynamic preflight questionnaire.
 7. Wait for confirmation of quality, parent location, media name, source language, subtitle choice, playback audio, ASR audio, and playlist behavior.
-8. Create one new project directory under the confirmed parent directory.
+8. Create the confirmed parent directory when needed, verify it is writable, and create one new project directory beneath it.
 9. Download one video-only stream and one best playback audio stream, merge them with FFmpeg, delete both intermediate streams after a successful merge, then download one separate ASR-optimal audio file, one best platform thumbnail, and at most one best source-language subtitle when available.
 10. Keep polling the same foreground process or session until every command completes or clearly fails.
 11. Verify the files and report their paths, sizes, formats, language choices, and any compatibility caveats.
