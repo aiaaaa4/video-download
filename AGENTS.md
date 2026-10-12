@@ -3,6 +3,7 @@
 开始工作前读取 `README.md`、`registry.json` 和 `skills/video-download/SKILL.md`。
 
 - 本仓库只维护 `aiaaaa4.video-download`，不得加入其他 Skill、App 或 Flow。
+- 本仓库的维护对话全名是 `S2 video-download`，内部 ID `S2` 由根 `registry.json` 分配。
 - 通用下载能力与个人 Flow 策略分离；个人默认值不得固化为所有用户规则。
 - 版本只在 `registry.json` 维护，并同步 README 展示。
 - 提交前运行仓库验证和完整测试。
